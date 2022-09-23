@@ -139,4 +139,50 @@ class OrderController extends Controller
         return $this->sendResponse(OrderResource::collection($orders), 'All orders have returned successfully');
 
     }
+
+    public function prepareItems(Request $request){
+
+        $user_id = auth()->user()->id;
+
+        $validator = Validator::make($request->all(),
+        [
+            'order_id' => 'required|exists:orders,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError('Validation Error.', $validator->errors());
+        }
+
+        $order = Order::where('id',$input['order_id'])->first();
+        $order_id = $order->id;
+
+        if($order->status == "pending"){
+
+            $items = Item::whereHas('orderDetails', function ($q) use($order_id) {
+                    $q->where('order_id',$order_id);
+                })->get();
+
+            if(count($items) > 0){
+                foreach($items as $item){
+
+                    if($item->category){
+                        $department = $item->category->department;
+
+                        //recieve the department the order to prepare
+                        $depatmentOrderDetail = new DepatmentOrderDetail();
+                        $depatmentOrderDetail->order_detail_id = 1;
+                        $depatmentOrderDetail->department_id =1 ;
+                        $depatmentOrderDetail->status = "";
+                    }
+                }
+
+            }
+
+        }
+        else{
+            return $this->sendError("The order must be pending");
+        }
+
+
+    }
 }
