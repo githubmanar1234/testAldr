@@ -15,21 +15,6 @@ class OrderDetailResource extends JsonResource
     public function toArray($request)
     {
 
-        if($this->item){
-            $item = new ItemResource($this->item);
-        }
-        else{
-            $item = [];
-        }
-
-        if($this->order){
-            $order = new OrderResource($this->order);
-        }
-        else{
-            $order = [];
-        }
-        
-
         $notes = "";
         if($this->notes){
             $notes = $this->notes;
@@ -52,8 +37,8 @@ class OrderDetailResource extends JsonResource
         return [
 
             'id' => $this->id,
-            // 'order_id ' => $this->order_id ,
-            // 'item_id' => $this->item_id ,
+            'order_id ' => $this->order_id ,
+            'item_id' => $this->item_id ,
             'total_price' => $this->total_price,
             'count' => $this->count ,
             'is_fired' => $this->is_fired,
@@ -62,8 +47,6 @@ class OrderDetailResource extends JsonResource
             'note_price' => $this->note_price ,
             'delay' => $this->delay,
             'cost' => $this->cost,
-            'item' => $item,
-            'order' => $order,
 
         ];
 

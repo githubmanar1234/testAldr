@@ -118,14 +118,14 @@ class OrderController extends BaseController
                     $total_price_order_detail = $orderDetail->total_price;
                     $order_total_cost += $total_price_order_detail;
                 }
-               
+                
+                $order->update(['total_price' => $order_total_cost]);
                 $order->consumption_taxs = $order_total_cost * 0.1;
                 $order->local_adminstration = $order_total_cost * 0.05;
                 $order->rebuild_tax = $order_total_cost * 0.01;
                 $order->taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01);
                 $order->total_after_taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01) + $order->total_cost;
-                $order->save();
-                
+
                 return $this->sendResponse(new OrderResource($order), 'The order has created successfully');
             }
             else{
@@ -143,10 +143,8 @@ class OrderController extends BaseController
 
         $user_id = auth()->user()->id;
         $orders = Order::all();
-        
-        $data['orders'] = OrderResource::collection($orders);
 
-        return $this->sendResponse($data, 'All orders have returned successfully');
+        return $this->sendResponse(OrderResource::collection($orders), 'All orders have returned successfully');
 
     }
 
