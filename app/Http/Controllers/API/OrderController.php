@@ -11,13 +11,16 @@ use App\Models\OrderDetail;
 use App\Models\Item;
 use App\Models\Table;
 use App\Http\Resources\OrderResource;
+use App\Http\Controllers\BaseController;
+use App\Http\Resources\DepatmentOrderDetailResource;
 
-class OrderController extends Controller
+class OrderController extends BaseController
 {
 
     public function createOrder(Request $request){
 
         $user_id = auth()->user()->id;
+        $input = $request->all();
 
         $validator = Validator::make($request->all(),
         [
@@ -49,7 +52,7 @@ class OrderController extends Controller
             if (isset($itemIds[0])){
                 foreach($itemIds as $key=>$itemId){
                     if(Item::find($itemId)){
-                        $is_available = Item::where('is_available',1)->first();
+                        $is_available = Item::where('id',$itemId)->where('is_available',1)->first();
                        if($is_available){
                        
                             //change table's status
@@ -59,6 +62,11 @@ class OrderController extends Controller
                                 $table->status = "in_use";
                                 $table->save();
                             }
+                            // else{
+                                
+                            //         return $this->sendError("This table not available");
+                                
+                            // }
 
                             //create new order
                             $order = new Order();
@@ -82,7 +90,7 @@ class OrderController extends Controller
                             $order->save();
 
                             //store order details
-                            $sell_price_item = Item::where('is_available',1)->first()->sell_price;
+                            $sell_price_item = Item::where('id',$itemId)->where('is_available',1)->first()->sell_price;
 
                             $orderDetail = new OrderDetail();
                             $orderDetail->order_id = $order->id;
@@ -105,19 +113,19 @@ class OrderController extends Controller
 
                 }
 
+                $order_total_cost = 0 ;
                 foreach($orderDetails as $orderDetail){
                     $total_price_order_detail = $orderDetail->total_price;
                     $order_total_cost += $total_price_order_detail;
                 }
-                $order->total_cost = $order_total_cost;
+               
                 $order->consumption_taxs = $order_total_cost * 0.1;
                 $order->local_adminstration = $order_total_cost * 0.05;
                 $order->rebuild_tax = $order_total_cost * 0.01;
                 $order->taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01);
+                $order->total_after_taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01) + $order->total_cost;
                 $order->save();
-                $order->total_after_taxes = $order->taxes + $order->total_cost;
-                $order->save();
-
+                
                 return $this->sendResponse(new OrderResource($order), 'The order has created successfully');
             }
             else{
@@ -135,8 +143,10 @@ class OrderController extends Controller
 
         $user_id = auth()->user()->id;
         $orders = Order::all();
+        
+        $data['orders'] = OrderResource::collection($orders);
 
-        return $this->sendResponse(OrderResource::collection($orders), 'All orders have returned successfully');
+        return $this->sendResponse($data, 'All orders have returned successfully');
 
     }
 
@@ -168,11 +178,27 @@ class OrderController extends Controller
                     if($item->category){
                         $department = $item->category->department;
 
+                        $orderDetail = OrderDetail::where('order_id',$order_id)->where('item_id',$item->id)->where('status',"pending")->first();
+
                         //recieve the department the order to prepare
                         $depatmentOrderDetail = new DepatmentOrderDetail();
-                        $depatmentOrderDetail->order_detail_id = 1;
-                        $depatmentOrderDetail->department_id =1 ;
-                        $depatmentOrderDetail->status = "";
+                        $depatmentOrderDetail->order_detail_id = $orderDetail->id;
+                        $depatmentOrderDetail->department_id = $department->id ;
+                        $depatmentOrderDetail->status = "ready";
+                        $depatmentOrderDetail->save();
+
+                        //recieve the chief the order to prepare
+                        $departmentUser = DepartmentUser::where('department_id',$department->id)->first();
+                        if($departmentUser){
+                            $departmentUser->status = "active";
+                            $departmentUser->save();
+                        }
+                        // else{
+                        //     return $this->sendError("This department dont have chief");
+                        // }
+
+                        return $this->sendResponse(new DepatmentOrderDetailResource($depatmentOrderDetail), 'The order has sent to prepare successfully');
+                        
                     }
                 }
 

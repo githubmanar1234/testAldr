@@ -56,7 +56,7 @@ class OrderDetailResource extends JsonResource
             // 'item_id' => $this->item_id ,
             'total_price' => $this->total_price,
             'count' => $this->count ,
-            'is_fired' => $is_fired,
+            'is_fired' => $this->is_fired,
             'status' => $this->status,
             'notes' => $this->notes	,
             'note_price' => $this->note_price ,
