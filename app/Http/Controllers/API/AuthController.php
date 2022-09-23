@@ -66,5 +66,6 @@ class AuthController extends BaseController
         return $this->sendResponse(new UserResource(auth()->user()), 'User login successfully');
 
     }
+  
     
 }
