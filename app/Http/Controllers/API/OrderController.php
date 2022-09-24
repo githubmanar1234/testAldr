@@ -10,32 +10,27 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Item;
 use App\Models\Table;
+use App\Models\DepatmentOrderDetail;
+use App\Models\Department;
+use App\Models\DepartmentUser;
 use App\Http\Resources\OrderResource;
 use App\Http\Controllers\BaseController;
 use App\Http\Resources\DepatmentOrderDetailResource;
+use App\Http\Requests\CreateOrderRequest;
+use App\Http\Requests\ReceiveItemsByDepartmentRequest;
+use DB;
 
 class OrderController extends BaseController
 {
 
-    public function createOrder(Request $request){
-
+    //create order from items to table - by captain 
+    public function createOrder(CreateOrderRequest $request){
+       
         $user_id = auth()->user()->id;
         $input = $request->all();
-
-        $validator = Validator::make($request->all(),
-        [
-            'table_id' => 'required|exists:tables,id',
-            'item_ids' => 'required',
-            'count_items' => 'required',
-            'customer' => 'numeric',
-            'payment_method' => 'in:card,cash,city_ledger,voucher,credit',
-            'notes' => 'string'
-        ]);
-
-        if ($validator->fails()) {
-            return $this->sendError('Validation Error.', $validator->errors());
-        }
-
+        DB::beginTransaction();
+        try{
+          
         $itemIds = $input['item_ids'];
         $itemIds = json_decode($itemIds ,true);
 
@@ -50,7 +45,32 @@ class OrderController extends BaseController
 
         if (is_array($itemIds)){
             if (isset($itemIds[0])){
+                 //create new order
+                 $order = new Order();
+                 $order->table_id = $input['table_id'];
+                 $order->order_date = Carbon::now();
+                 $order->table_id = $input['table_id'];
+                 $order->status = "pending";	
+                 if(isset($input['customer'])){
+                     $order->customer = $input['customer'];	
+                 }
+                 if(isset($input['payment_method'])){
+                     $order->payment_method = $input['payment_method'];	
+                 }
+                 else{
+                    $order->payment_method = "";	
+                 }
+                 $order->user_id = $user_id;
+                 $order->client_name = auth()->user()->name;
+
+                 if(isset($input['notes'])){
+                     $order->notes = $input['notes'];	
+                 }
+
+                 $order->save();
+                 $order_total_cost = 0 ;
                 foreach($itemIds as $key=>$itemId){
+
                     if(Item::find($itemId)){
                         $is_available = Item::where('id',$itemId)->where('is_available',1)->first();
                        if($is_available){
@@ -62,32 +82,6 @@ class OrderController extends BaseController
                                 $table->status = "in_use";
                                 $table->save();
                             }
-                            // else{
-                                
-                            //         return $this->sendError("This table not available");
-                                
-                            // }
-
-                            //create new order
-                            $order = new Order();
-                            $order->table_id = $input['table_id'];
-                            $order->order_date = Carbon::now();
-                            $order->table_id = $input['table_id'];
-                            $order->status = "pending";	
-                            if(isset($input['customer'])){
-                                $order->customer = $input['customer'];	
-                            }
-                            if(isset($input['payment_method'])){
-                                $order->payment_method = $input['payment_method'];	
-                            }
-                            $order->user_id = $user_id;
-                            $order->client_name = auth()->user()->name;
-
-                            if(isset($input['notes'])){
-                                $order->notes = $input['notes'];	
-                            }
-
-                            $order->save();
 
                             //store order details
                             $sell_price_item = Item::where('id',$itemId)->where('is_available',1)->first()->sell_price;
@@ -95,50 +89,59 @@ class OrderController extends BaseController
                             $orderDetail = new OrderDetail();
                             $orderDetail->order_id = $order->id;
                             $orderDetail->item_id  = $itemId;
-                            $orderDetail->item_id  = $itemId;
                             $orderDetail->status  = "pending";
                             $orderDetail->cost  = $sell_price_item;
                             $orderDetail->total_price  = $sell_price_item * $countItems[$key];
+                            $order_total_cost += $orderDetail->total_price;
                             $orderDetail->save();
-
+                            
                             $orderDetails[] = $orderDetail;
                         }
                         else{
+                            DB::rollback();
                             return $this->sendError("The item $itemId is not available");
                         }
                     }
                     else{
+                        DB::rollback();
                         return $this->sendError("The item $itemId not exist");
                     }
 
                 }
 
-                $order_total_cost = 0 ;
-                foreach($orderDetails as $orderDetail){
-                    $total_price_order_detail = $orderDetail->total_price;
-                    $order_total_cost += $total_price_order_detail;
-                }
-                
-                $order->update(['total_price' => $order_total_cost]);
+
+                //recalculate  total price and taxes
+                $order->total_price = $order_total_cost;
                 $order->consumption_taxs = $order_total_cost * 0.1;
                 $order->local_adminstration = $order_total_cost * 0.05;
                 $order->rebuild_tax = $order_total_cost * 0.01;
                 $order->taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01);
                 $order->total_after_taxes = ($order_total_cost * 0.1) + ($order_total_cost * 0.05) + ($order_total_cost * 0.01) + $order->total_cost;
+                $order->save();
+                DB::commit();
 
                 return $this->sendResponse(new OrderResource($order), 'The order has created successfully');
             }
             else{
+                            DB::rollback();
+
                 return $this->sendError("You did not insert any item");
             }
 
         }
         else{
+            DB::rollback();
+
             return $this->sendError("item_ids is not array");
         }
 
+        }catch(Exception $e){
+            DB::rollback();
+        }
+        
     }
 
+    //show orders and order details including calculated fields -by captain
     public function orders(){
 
         $user_id = auth()->user()->id;
@@ -148,64 +151,23 @@ class OrderController extends BaseController
 
     }
 
-    public function prepareItems(Request $request){
+    //department receive his own items to prepare - by chief
+    public function receiveItemsByDepartment(ReceiveItemsByDepartmentRequest $request){
 
         $user_id = auth()->user()->id;
 
-        $validator = Validator::make($request->all(),
-        [
-            'order_id' => 'required|exists:orders,id',
-        ]);
+        $input = $request->all();
 
-        if ($validator->fails()) {
-            return $this->sendError('Validation Error.', $validator->errors());
-        }
+        $department = Department::where('id',$input['department_id'])->first();
+        $items =  $department->items;
+        $itemsIds = $items->pluck('id')->toArray();    
+        $orders = Order::whereHas('orderDetails', function ($q) use($itemsIds) {
+            $q->whereIn('item_id',$itemsIds);
+        })->where('status',"pending")->get();
+      
+        $data['orders']  = OrderResource::collection($orders);
 
-        $order = Order::where('id',$input['order_id'])->first();
-        $order_id = $order->id;
-
-        if($order->status == "pending"){
-
-            $items = Item::whereHas('orderDetails', function ($q) use($order_id) {
-                    $q->where('order_id',$order_id);
-                })->get();
-
-            if(count($items) > 0){
-                foreach($items as $item){
-
-                    if($item->category){
-                        $department = $item->category->department;
-
-                        $orderDetail = OrderDetail::where('order_id',$order_id)->where('item_id',$item->id)->where('status',"pending")->first();
-
-                        //recieve the department the order to prepare
-                        $depatmentOrderDetail = new DepatmentOrderDetail();
-                        $depatmentOrderDetail->order_detail_id = $orderDetail->id;
-                        $depatmentOrderDetail->department_id = $department->id ;
-                        $depatmentOrderDetail->status = "ready";
-                        $depatmentOrderDetail->save();
-
-                        //recieve the chief the order to prepare
-                        $departmentUser = DepartmentUser::where('department_id',$department->id)->first();
-                        if($departmentUser){
-                            $departmentUser->status = "active";
-                            $departmentUser->save();
-                        }
-                        // else{
-                        //     return $this->sendError("This department dont have chief");
-                        // }
-
-                        return $this->sendResponse(new DepatmentOrderDetailResource($depatmentOrderDetail), 'The order has sent to prepare successfully');
-                        
-                    }
-                }
-
-            }
-
-        }
-        else{
-            return $this->sendError("The order must be pending");
-        }
+        return $this->sendResponse($data,'All orders returned successfully');
 
 
     }

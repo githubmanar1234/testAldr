@@ -23,13 +23,19 @@ class UserResource extends JsonResource
         else{
             $image = "#";
         }
+        if($this->role_id){
+            $role = $this->role->name;
+        }
+        else{
+            $role = "";
+        }
 
         return [
 
             'id' => $this->id,
             'name' => $this->name ,
             'username' => $this->username,
-            'role_id' => $this->role_id,
+            'role' => $role,
             'email' => $this->email ,
             'image' => $image,
             'accessToken' =>  $accessToken,

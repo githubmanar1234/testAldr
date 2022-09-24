@@ -20,18 +20,9 @@ class OrderDetailResource extends JsonResource
             $notes = $this->notes;
         }
 
-        $client_name = "";
-        if($this->client_name){
-            $client_name = $this->client_name;
-        }
-        $discount_amount= 0.0;
-        if($this->$discount_amount){
-            $discount_amount = $this->$discount_amount;
-        }
-
-        $payment_method= "";
-        if($this->payment_method){
-            $payment_method = $this->$payment_method;
+        $note_price= "";
+        if($this->note_price){
+            $note_price = $this->$note_price;
         }
     
         return [
@@ -43,9 +34,9 @@ class OrderDetailResource extends JsonResource
             'count' => $this->count ,
             'is_fired' => $this->is_fired,
             'status' => $this->status,
-            'notes' => $this->notes	,
-            'note_price' => $this->note_price ,
-            'delay' => $this->delay,
+            'notes' => $notes	,
+            'note_price' => $note_price ,
+            // 'delay' => $this->delay,
             'cost' => $this->cost,
 
         ];

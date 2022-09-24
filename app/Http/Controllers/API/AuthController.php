@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends BaseController
 {
-    // use ApiResponser;
 
     public function register(Request $request)
     {
@@ -34,10 +33,9 @@ class AuthController extends BaseController
         $user->email = $input['email'];
         $user->password = bcrypt($input['password']);
         $user->username = $input['username'];
-        // $user->role_id =$input['role_id'];
+        $user->role_id =$input['role_id'];
         
         $user->save();
-        // event(new Registered($user));
 
         return $this->sendResponse(new UserResource($user), 'User register successfully.');
 

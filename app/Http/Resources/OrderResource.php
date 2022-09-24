@@ -31,9 +31,13 @@ class OrderResource extends JsonResource
             $discount_amount = $this->$discount_amount;
         }
 
-        $payment_method= "";
-        if($this->payment_method){
-            $payment_method = $this->$payment_method;
+        $payment_state= 0;
+        if($this->$payment_state){
+            $payment_state = $this->$payment_state;
+        }
+        $total_cost= 0.0;
+        if($this->$total_cost){
+            $total_cost = $this->$total_cost;
         }
     
         return [
@@ -42,12 +46,12 @@ class OrderResource extends JsonResource
             'table_id' => $this->table_id ,
             'order_date' => $this->order_date,
             'total_price' => $this->total_price,
-            'payment_state' => $this->payment_state ,
-            'payment_method' => $payment_method,
+            'payment_state' => $payment_state ,
+            'payment_method' => $this->payment_method,
             'status' => $this->status,
             'customer' => $this->customer,
             'user_id' => $this->user_id ,
-            'total_cost' => $this->total_cost,
+            'total_cost' => $total_cost,
             'total_after_taxes' => $this->total_after_taxes,
             'taxes' => $this->taxes,
             'consumption_taxs' => $this->consumption_taxs,

@@ -10,6 +10,8 @@ class DepatmentOrderDetail extends Model
 {
     use HasFactory,SoftDeletes;
 
+    protected $table = 'department_order_details';
+
     protected $fillable = [
         'department_id', 'order_detail_id', 'status',
     ];

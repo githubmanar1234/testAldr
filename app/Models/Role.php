@@ -6,12 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Department extends Model
+class Role extends Model
 {
     use HasFactory,SoftDeletes;
 
-    public function items()
-    {
-        return $this->hasManyThrough(Item::class, Category::class);
-    }
+    
 }
